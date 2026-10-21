@@ -1,0 +1,16 @@
+PARAGON FISKALNY
+Pomidory kiścio. luz F 0,43 x8,99 3,87C
+OPUST Pomidory kiścio. luz F
+-0,43
+3,44C
+Mix sałat klas.200g F 1 x5,45 5,45C
+Łosoś sałatkowy F 1 x7,49 7,49C
+Wegański deser H.P. I 1 x2,99 2,99B
+Serek wiejski F 1 x2,29 2,29C
+Krem z octem balsam. I 1 x8,99 8,99B
+Bułka ziemniaczana 1 F 2 x0,99 1,98C
+Bułka górska F 2 x0,99 1,98C
+Podsuma: 34,61
+SPRZEDAŻ OPODATKOWANA B 11,98
+SPRZEDAŻ OPODATKOWANA C 22,63
+SUMA PLN 34,61

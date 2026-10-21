@@ -1,0 +1,4 @@
+# Optional: install manually after selecting a compatible Python/PaddlePaddle build.
+# PaddlePaddle CPU/GPU must be installed separately for the target platform.
+paddleocr>=3,<4
+numpy>=1.26,<3
