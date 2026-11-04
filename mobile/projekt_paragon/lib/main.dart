@@ -1,122 +1,239 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'api.dart';
+
+void main() => runApp(const MyApp());
+
+typedef ApiFactory = PeopleApi Function(String address);
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.apiFactory});
+  final ApiFactory? apiFactory;
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'Projekt Paragon',
+    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+    home: PeoplePage(apiFactory: apiFactory ?? ParagonApi.new),
+  );
+}
+
+class PeoplePage extends StatefulWidget {
+  const PeoplePage({super.key, required this.apiFactory});
+  final ApiFactory apiFactory;
+  @override
+  State<PeoplePage> createState() => _PeoplePageState();
+}
+
+class _PeoplePageState extends State<PeoplePage> {
+  final _address = TextEditingController(
+    text: const String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'http://10.0.2.2:8000',
+    ),
+  );
+  final _name = TextEditingController();
+  final _form = GlobalKey<FormState>();
+  PeopleApi? _api;
+  List<Person> _people = [];
+  bool _busy = false;
+  String? _error;
+  String? _connectedAddress;
+
+  @override
+  void initState() {
+    super.initState();
+    _connect();
   }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
+  void dispose() {
+    _api?.close();
+    _address.dispose();
+    _name.dispose();
+    super.dispose();
+  }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  Future<void> _connect() async {
+    if (_busy) return;
+    try {
+      final address = _address.text.trim();
+      ParagonApi.validateAddress(address);
+      final api = widget.apiFactory(address);
+      _api?.close();
+      _api = api;
+      setState(() {
+        _people = [];
+        _connectedAddress = null;
+        _error = null;
+        _busy = true;
+      });
+      final people = await api.getPeople();
+      if (!mounted) return;
+      setState(() {
+        _people = people;
+        _connectedAddress = address;
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
-  void _incrementCounter() {
+  Future<void> _refresh() async {
+    if (_busy || _api == null) return;
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _busy = true;
+      _error = null;
     });
+    try {
+      final people = await _api!.getPeople();
+      if (mounted) setState(() => _people = people);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _addPerson() async {
+    if (_busy || _connectedAddress == null || !_form.currentState!.validate()) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final person = await _api!.addPerson(_name.text.trim());
+      if (!mounted) return;
+      setState(() {
+        _people = [..._people, person];
+        _name.clear();
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Dodano osobę')));
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Znajomi')),
+    body: SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 650),
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                'Projekt Paragon',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text('Dodaj osoby, z którymi będziesz rozliczać zakupy.'),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _address,
+                enabled: !_busy,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: 'Adres serwera API',
+                  helperText: 'Emulator Androida: http://10.0.2.2:8000',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: _busy ? null : _connect,
+                child: const Text('Połącz'),
+              ),
+              if (_connectedAddress != null)
+                Text('Połączono: $_connectedAddress'),
+              if (_busy)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: LinearProgressIndicator(),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Form(
+                key: _form,
+                child: TextFormField(
+                  controller: _name,
+                  enabled: !_busy && _connectedAddress != null,
+                  maxLength: 100,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Imię lub nazwa osoby',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Wpisz nazwę osoby'
+                      : null,
+                  onFieldSubmitted: (_) => _addPerson(),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _busy || _connectedAddress == null
+                    ? null
+                    : _addPerson,
+                icon: const Icon(Icons.person_add_alt_1),
+                label: const Text('Dodaj osobę'),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Twoi znajomi (${_people.length})',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _busy || _connectedAddress == null
+                        ? null
+                        : _refresh,
+                    tooltip: 'Odśwież listę',
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+              if (_people.isEmpty && !_busy && _connectedAddress != null)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Nie masz jeszcze znajomych. Dodaj pierwszą osobę.',
+                  ),
+                ),
+              for (final person in _people)
+                Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline),
+                    ),
+                    title: Text(person.name),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
+    ),
+  );
 }

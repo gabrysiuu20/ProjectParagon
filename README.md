@@ -1,7 +1,8 @@
 ﻿# ProjectParagon
 
 Backend MVP aplikacji Android do ręcznego rozliczania zakupów z paragonów.
-Flutter jest w `mobile/projekt_paragon/`; na tym etapie nie jest połączony z API.
+Flutter jest w `mobile/projekt_paragon/`; ekran znajomych korzysta z API.
+Konfiguracja adresu, uruchomienie i testy: `mobile/projekt_paragon/README.md`.
 Puste pliki w `app/` pozostawiono jako dotychczasowy szkielet. Implementacja jest w `backend/`.
 
 ## Plan i zakres
@@ -9,14 +10,15 @@ Puste pliki w `app/` pozostawiono jako dotychczasowy szkielet. Implementacja jes
 1. Parser, Decimal, weryfikacja sum i testy — zaimplementowane.
 2. FastAPI, SQLite, ręczne przypisania i korekty, XLSX — zaimplementowane.
 3. OCR: adapter PaddleOCR 3.x — wymaga ręcznej instalacji i oceny na zdjęciach.
-4. Flutter: aparat, galeria, korekty i przypisania — kolejny etap.
+4. Flutter: połączenie z API, lista i dodawanie znajomych — zaimplementowane.
+5. Flutter: aparat, galeria, korekty i przypisania — kolejne etapy.
 
 ## Uruchomienie
 
 PowerShell, z katalogu projektu:
 
 ```powershell
-python -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\python -m pip install -r backend/requirements.txt
 .\.venv\Scripts\python -m uvicorn backend.main:create_app --factory --reload
 ```
@@ -32,8 +34,10 @@ Zależności adaptera są w `backend/requirements-ocr.txt`; silnik PaddlePaddle
 (CPU/GPU) należy dobrać i zainstalować osobno według oficjalnej instrukcji:
 https://www.paddleocr.ai/main/en/quick_start.html
 Przed instalacją sprawdź zgodność wersji Pythona, systemu i silnika;
-obecne środowisko Python 3.14 nie zostało zweryfikowane z PaddlePaddle.
-Na tym etapie nie zainstalowano PaddleOCR ani nie pobrano modeli.
+projekt korzysta z Pythona 3.12 (64-bit). Python 3.14 nie jest zgodny
+z używanymi pakietami binarnymi PaddlePaddle.
+Środowisko lokalne odtworzono z PaddleOCR 3.7.0 i PaddlePaddle CPU 3.3.1.
+Modele i jakość odczytu rzeczywistych zdjęć wymagają osobnej weryfikacji.
 Model ładuje się przy pierwszym zdjęciu; może wtedy pobierać pliki z sieci,
 więc pierwszy odczyt może potrwać dłużej. Brak zależności lub błąd silnika daje HTTP 503,
 a pozostałe API działa bez OCR. Adapter korzysta z API `predict()` PaddleOCR 3.x.
@@ -83,6 +87,8 @@ Fragmenty PaddleOCR są łączone w wiersze według położenia; dla przekrzywio
 lub nietypowych paragonów kolejność wymaga sprawdzenia. Automatyczne obracanie
 i prostowanie dokumentu jest na razie wyłączone; zdjęcie powinno być ustawione pionowo.
 Adapter nie ma obecnie limitu czasu wykonywania modelu.
+Optymalizacja CPU MKL-DNN/oneDNN jest wyłączona w adapterze ze względu
+na błąd `ConvertPirAttribute2RuntimeAttribute` w ścieżce PIR.
 Upload ograniczony do 10 MB, obraz do 25 megapikseli. Zdjęcia nie są zapisywane;
 tekst OCR pozostaje w bazie. API nie ma jeszcze logowania ani izolacji użytkowników;
 publiczne wdrożenie wymaga osobnego etapu.

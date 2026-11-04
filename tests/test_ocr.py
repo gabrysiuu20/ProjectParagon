@@ -37,6 +37,7 @@ def test_lazy_model_configuration_and_cache(monkeypatch):
     assert len(calls) == 1
     assert calls[0]["lang"] == "pl"
     assert calls[0]["device"] == "cpu"
+    assert calls[0]["enable_mkldnn"] is False
 
 
 def test_missing_dependencies_return_503(tmp_path, monkeypatch):

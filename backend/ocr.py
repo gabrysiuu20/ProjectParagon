@@ -22,6 +22,8 @@ def _get_engine():
         _engine = PaddleOCR(
             lang=os.getenv("OCR_LANG", "pl"),
             device=os.getenv("OCR_DEVICE", "cpu"),
+            # Avoid the oneDNN/PIR attribute conversion failure on Paddle CPU.
+            enable_mkldnn=False,
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
             use_textline_orientation=False,
