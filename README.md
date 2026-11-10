@@ -11,7 +11,9 @@ Puste pliki w `app/` pozostawiono jako dotychczasowy szkielet. Implementacja jes
 2. FastAPI, SQLite, ręczne przypisania i korekty, XLSX — zaimplementowane.
 3. OCR: adapter PaddleOCR 3.x — wymaga ręcznej instalacji i oceny na zdjęciach.
 4. Flutter: połączenie z API, lista i dodawanie znajomych — zaimplementowane.
-5. Flutter: aparat, galeria, korekty i przypisania — kolejne etapy.
+5. Flutter: aparat, galeria, podgląd i upload do OCR — zaimplementowane.
+6. Flutter: korekta produktów, rabatów i sumy — zaimplementowana.
+7. Flutter: przypisania, historia i eksport — kolejne etapy.
 
 ## Uruchomienie
 
@@ -37,11 +39,12 @@ Przed instalacją sprawdź zgodność wersji Pythona, systemu i silnika;
 projekt korzysta z Pythona 3.12 (64-bit). Python 3.14 nie jest zgodny
 z używanymi pakietami binarnymi PaddlePaddle.
 Środowisko lokalne odtworzono z PaddleOCR 3.7.0 i PaddlePaddle CPU 3.3.1.
-Modele i jakość odczytu rzeczywistych zdjęć wymagają osobnej weryfikacji.
+Odczyt sprawdzono na dwóch rzeczywistych zdjęciach Lidl i Carrefour;
+jakość dla innych paragonów wymaga dalszej weryfikacji.
 Model ładuje się przy pierwszym zdjęciu; może wtedy pobierać pliki z sieci,
 więc pierwszy odczyt może potrwać dłużej. Brak zależności lub błąd silnika daje HTTP 503,
 a pozostałe API działa bez OCR. Adapter korzysta z API `predict()` PaddleOCR 3.x.
-Konfiguracja: `PARAGON_DB`, `OCR_LANG=pl`, `OCR_DEVICE=cpu`
+Konfiguracja: `PARAGON_DB`, `OCR_LANG=pl`, `OCR_DEVICE=cpu`, `OCR_UNWARP=0`
 (przykład: `backend/.env.example`). Po zmianie konfiguracji zrestartuj backend.
 Plik `.env` nie jest automatycznie wczytywany. Klucze API nie są potrzebne.
 
@@ -72,7 +75,8 @@ backend liczy przez Decimal. XLSX zapisuje wartości liczbowe do prezentacji.
 
 ## Ograniczenia MVP
 
-Parser obsługuje ilość × cenę, produkty ważone, przecinek/kropkę, VAT, nazwę
+Parser obsługuje ilość × cenę, zapis Carrefour `szt*…=…`, produkty ważone,
+przecinek/kropkę, VAT, nazwę
 w poprzednim wierszu i rabat z pasującą nazwą bezpośrednio po produkcie.
 Nie jest uniwersalnym parserem wszystkich sklepów. Niejasne wiersze i rabaty
 trafiają do ostrzeżeń; surowy tekst pozostaje do korekty. Zgodność sumy nie oznacza
@@ -83,9 +87,14 @@ koszt i zgodność sumy. Brak automatycznych przypisań do osób.
 `tests/fixtures/lidl.txt` to ręczna transkrypcja przykładowego paragonu,
 nie wynik OCR. Osiem produktów po rabacie daje 34,61 PLN.
 Test API używa zastępczego OCR; nie potwierdza jakości odczytu zdjęcia.
-Fragmenty PaddleOCR są łączone w wiersze według położenia; dla przekrzywionych
-lub nietypowych paragonów kolejność wymaga sprawdzenia. Automatyczne obracanie
-i prostowanie dokumentu jest na razie wyłączone; zdjęcie powinno być ustawione pionowo.
+Fragmenty PaddleOCR są łączone w wiersze z uwzględnieniem nachylenia tekstu;
+dla nietypowych paragonów kolejność nadal wymaga sprawdzenia. Automatyczne obracanie
+jest wyłączone; zdjęcie powinno być ustawione pionowo. Prostowanie można testowo
+włączyć przez `OCR_UNWARP=1` (wymaga dodatkowego modelu UVDoc i restartu backendu).
+Testy regresji obejmują transkrypcje OCR z dwóch rzeczywistych zdjęć: Lidl
+(8 pozycji, 34,61 PLN) i Carrefour (21 pozycji, 84,50 PLN; kaucja 1,50 PLN osobno).
+Zgodność sumy nie potwierdza poprawności nazw produktów ani stawek VAT;
+rozpoznane dane trzeba przejrzeć przed rozliczeniem.
 Adapter nie ma obecnie limitu czasu wykonywania modelu.
 Optymalizacja CPU MKL-DNN/oneDNN jest wyłączona w adapterze ze względu
 na błąd `ConvertPirAttribute2RuntimeAttribute` w ścieżce PIR.

@@ -24,6 +24,15 @@ def test_reconstruct_rows_and_reading_order():
     assert ocr._result_text([{"rec_texts": [], "rec_boxes": []}]) == ""
 
 
+def test_reconstruct_tilted_row_from_polygons():
+    results = [{"rec_texts": ["1 x5,45 5,45C", "Mix sałat F", "Kolejny produkt"],
+                "rec_boxes": [[200, 30, 360, 50], [0, 10, 150, 30], [0, 42, 150, 62]],
+                "rec_polys": [[[200, 30], [360, 46], [358, 56], [198, 40]],
+                              [[0, 10], [150, 25], [150, 35], [0, 20]],
+                              [[0, 42], [150, 57], [150, 67], [0, 52]]]}]
+    assert ocr._result_text(results) == "Mix sałat F 1 x5,45 5,45C\nKolejny produkt"
+
+
 def test_lazy_model_configuration_and_cache(monkeypatch):
     calls = []
     def factory(**kwargs):
@@ -38,6 +47,16 @@ def test_lazy_model_configuration_and_cache(monkeypatch):
     assert calls[0]["lang"] == "pl"
     assert calls[0]["device"] == "cpu"
     assert calls[0]["enable_mkldnn"] is False
+    assert calls[0]["use_doc_unwarping"] is False
+
+
+def test_optional_document_unwarping(monkeypatch):
+    calls = []
+    monkeypatch.setitem(sys.modules, "paddleocr", SimpleNamespace(PaddleOCR=lambda **kwargs: calls.append(kwargs) or object()))
+    monkeypatch.setattr(ocr, "_engine", None)
+    monkeypatch.setenv("OCR_UNWARP", "1")
+    ocr._get_engine()
+    assert calls[0]["use_doc_unwarping"] is True
 
 
 def test_missing_dependencies_return_503(tmp_path, monkeypatch):

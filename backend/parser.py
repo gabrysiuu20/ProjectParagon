@@ -1,5 +1,6 @@
 """Conservative text parser: unrecognized lines remain visible for review."""
 import re
+import unicodedata
 from decimal import Decimal, ROUND_HALF_UP
 from pydantic import ValidationError
 
@@ -8,13 +9,20 @@ from backend.models import Item, Receipt
 CENT = Decimal("0.01")
 NUMBER = r"\d+(?:[.,]\d+)?"
 PRODUCT = re.compile(
-    rf"^(?P<name>.*?)\s*(?P<qty>{NUMBER})\s*[x×*]\s*"
-    rf"(?P<price>{NUMBER})\s+(?P<amount>\d+[.,]\d{{2}})\s*(?P<vat>[A-G])?$", re.I
+    rf"^(?P<name>.*?)\s*(?P<qty>{NUMBER})\s*(?:z?szt\.?\s*w?\s*)?[x×*]\s*"
+    rf"(?P<price>{NUMBER})\s*(?:=|\s)\s*(?P<amount>\d+[.,]\d{{2}})\s*(?P<vat>[A-G8])?$", re.I
 )
-TOTAL = re.compile(r"^SUMA\s*(?:PLN|ZŁ|ZL)?\s*[:=]?\s*(\d+[.,]\d{2})\s*$", re.I)
+TOTAL = re.compile(r"^SUMA\s*(?:PLN|ZŁ|ZL)\b.*?(\d+[.,]\d{2})\s*$", re.I)
 DISCOUNT = re.compile(r"^(?:OPUST|RABAT)\b", re.I)
 NEGATIVE = re.compile(r"-\s*(\d+[.,]\d{2})\s*[A-G]?$", re.I)
 FINAL_AMOUNT = re.compile(r"^(\d+[.,]\d{2})\s*[A-G]?$", re.I)
+
+
+def discount_name(name: str) -> str:
+    # Some shops print a product group letter between its name and quantity.
+    name = re.sub(r"\s+[A-G]$", "", name.strip(), flags=re.I).casefold()
+    name = unicodedata.normalize("NFKD", name.replace("ł", "l"))
+    return "".join(char for char in name if not unicodedata.combining(char))
 
 
 def decimal(text: str) -> Decimal:
@@ -52,8 +60,9 @@ def parse_receipt(text: str) -> Receipt:
             if receipt.total is not None and receipt.total != value:
                 receipt.warnings.append("Sprzeczne sumy paragonu; wymagana korekta.")
             receipt.total = value
+            in_body = False
             continue
-        if re.match(r"^(Podsum|SPRZEDAŻ|SPRZEDAZ|PTU|SUMA PTU|ROZLICZENIE|KARTA)", line, re.I):
+        if re.match(r"^(Podsum|Sprzed|PTU|Kwota PTU|Suma Opust|SUMA PT|ROZLICZENIE|KARTA|KAUCJA|OPAKOWANIA|DO ZAPŁATY)", line, re.I):
             in_body = False
             pending_name = ""
             continue
@@ -70,7 +79,7 @@ def parse_receipt(text: str) -> Receipt:
             # Only attach a discount when its explicit label matches the preceding product.
             label = DISCOUNT.sub("", discount_line).strip()
             label = NEGATIVE.sub("", label).strip()
-            if receipt.items and label.casefold() == receipt.items[-1].name.casefold():
+            if receipt.items and discount_name(label) == discount_name(receipt.items[-1].name):
                 item = receipt.items[-1]
                 value = decimal(amount[1])
                 if item.discount + value <= item.amount:
@@ -81,21 +90,32 @@ def parse_receipt(text: str) -> Receipt:
             else:
                 receipt.warnings.append(f"Nieprzypisany rabat: {discount_line.strip()}")
             continue
+        if discounted_item is not None:
+            trailing = re.search(r"\s+(\d+[.,]\d{2})\s*[A-G]?$", line, re.I)
+            if trailing and decimal(trailing[1]) == discounted_item.amount - discounted_item.discount:
+                line = line[:trailing.start()].strip()
+                discounted_item = None
+                if not line:
+                    continue
         match = PRODUCT.match(line)
         if match:
-            name = match["name"].strip() or pending_name
+            name = match["name"].strip()
+            if pending_name and (not name or re.fullmatch(r"[A-G]", name, re.I)):
+                name = " ".join(filter(None, [pending_name, name]))
             if not name:
                 receipt.warnings.append(f"Brak nazwy produktu: {line}")
                 continue
             try:
                 item = Item(name=name, quantity=decimal(match["qty"]),
                             unit_price=decimal(match["price"]), amount=decimal(match["amount"]),
-                            vat=match["vat"].upper() if match["vat"] else None)
+                            vat=match["vat"].upper() if match["vat"] and match["vat"].upper() != "8" else None)
             except ValidationError:
                 receipt.warnings.append(f"Nieprawidłowe dane produktu: {line}")
                 pending_name = ""
                 continue
             receipt.items.append(item)
+            if match["vat"] == "8":
+                receipt.warnings.append(f"Niepewna stawka VAT (OCR odczytał 8): {name}")
             if (item.quantity * item.unit_price).quantize(CENT, rounding=ROUND_HALF_UP) != item.amount:
                 receipt.warnings.append(f"Ilość × cena nie zgadza się z wartością: {name}")
             pending_name = ""

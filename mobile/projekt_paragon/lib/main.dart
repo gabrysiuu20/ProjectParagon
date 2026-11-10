@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'receipt_page.dart';
 
 void main() => runApp(const MyApp());
 
@@ -123,7 +124,22 @@ class _PeoplePageState extends State<PeoplePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Znajomi')),
+    appBar: AppBar(
+      title: const Text('Znajomi'),
+      actions: [
+        TextButton.icon(
+          onPressed: _busy || _connectedAddress == null
+              ? null
+              : () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ReceiptPage(address: _connectedAddress!),
+                  ),
+                ),
+          icon: const Icon(Icons.receipt_long),
+          label: const Text('Dodaj paragon'),
+        ),
+      ],
+    ),
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
