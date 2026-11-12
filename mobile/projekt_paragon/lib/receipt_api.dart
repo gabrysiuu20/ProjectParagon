@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'api.dart';
+import 'receipt_math.dart';
 
 const maxPhotoBytes = 10 * 1024 * 1024;
 
@@ -11,7 +12,8 @@ class UploadedReceipt {
   UploadedReceipt.fromJson(Map<String, dynamic> json)
     : id = json['id'] as int,
       receipt = json['receipt'] as Map<String, dynamic>,
-      validation = json['validation'] as Map<String, dynamic>? {
+      validation = json['validation'] as Map<String, dynamic>?,
+      settlement = json['settlement'] as Map<String, dynamic>? {
     if (receipt['items'] is! List ||
         receipt['raw_text'] is! String ||
         receipt['warnings'] is! List ||
@@ -23,6 +25,28 @@ class UploadedReceipt {
   final int id;
   final Map<String, dynamic> receipt;
   final Map<String, dynamic>? validation;
+  final Map<String, dynamic>? settlement;
+}
+
+class SettlementResult {
+  SettlementResult.fromJson(Map<String, dynamic> json)
+    : totals = (json['totals'] as Map<String, dynamic>).map((id, amount) {
+        final cents = parseMoneyCents(amount.toString());
+        if (cents == null) throw const FormatException('Invalid settlement');
+        return MapEntry(int.parse(id), cents);
+      }),
+      unassignedCents = parseMoneyCents(json['unassigned_amount'].toString())!,
+      complete = json['complete'] as bool,
+      receiptValidation = json['receipt_validation'] as Map<String, dynamic>? {
+    if (unassignedCents < BigInt.zero) {
+      throw const FormatException('Invalid settlement');
+    }
+  }
+
+  final Map<int, BigInt> totals;
+  final BigInt unassignedCents;
+  final bool complete;
+  final Map<String, dynamic>? receiptValidation;
 }
 
 class ReceiptApi {
@@ -130,6 +154,93 @@ class ReceiptApi {
       throw const ApiException(
         'Serwer zwrócił nieprawidłowe dane paragonu po korekcie.',
       );
+    }
+  }
+
+  Future<UploadedReceipt> getReceipt(int id) async {
+    try {
+      final response = await _client
+          .get(_baseUri.resolve('/receipts/$id'))
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode == 404) {
+        throw const ApiException('Nie znaleziono paragonu na serwerze.');
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+          'Nie udało się wczytać rozliczenia (HTTP ${response.statusCode}).',
+        );
+      }
+      return UploadedReceipt.fromJson(
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
+      );
+    } on TimeoutException {
+      throw const ApiException(
+        'Serwer nie odpowiedział podczas wczytywania rozliczenia.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Utracono połączenie podczas wczytywania rozliczenia.',
+      );
+    } on FormatException {
+      throw const ApiException('Serwer zwrócił nieprawidłowy paragon.');
+    } on TypeError {
+      throw const ApiException('Serwer zwrócił nieprawidłowy paragon.');
+    }
+  }
+
+  Future<SettlementResult> updateSettlement(
+    int id,
+    Map<int, Set<int>> assignments,
+  ) async {
+    try {
+      final indices = assignments.keys.toList()..sort();
+      final response = await _client
+          .put(
+            _baseUri.resolve('/receipts/$id/settlement'),
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'assignments': [
+                for (final index in indices)
+                  if (assignments[index]!.isNotEmpty)
+                    {
+                      'item_index': index,
+                      'person_ids': assignments[index]!.toList()..sort(),
+                    },
+              ],
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode == 404) {
+        throw const ApiException('Nie znaleziono paragonu na serwerze.');
+      }
+      if (response.statusCode == 422) {
+        throw const ApiException(
+          'Nie można zapisać przypisań. Odśwież paragon i listę osób.',
+        );
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+          'Nie udało się zapisać podziału (HTTP ${response.statusCode}).',
+        );
+      }
+      return SettlementResult.fromJson(
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
+      );
+    } on TimeoutException {
+      throw const ApiException(
+        'Brak potwierdzenia zapisu. Podział mógł zostać zapisany; odśwież ekran.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Utracono połączenie. Podział mógł zostać zapisany; odśwież ekran.',
+      );
+    } on FormatException {
+      throw const ApiException('Serwer zwrócił nieprawidłowe rozliczenie.');
+    } on TypeError {
+      throw const ApiException('Serwer zwrócił nieprawidłowe rozliczenie.');
     }
   }
 

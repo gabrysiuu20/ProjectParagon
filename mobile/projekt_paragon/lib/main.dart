@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'dashboard_page.dart';
 import 'receipt_page.dart';
 import 'welcome_page.dart';
 
@@ -15,29 +16,38 @@ class MyApp extends StatelessWidget {
   // can pass its verified session state here; guest mode never changes it.
   final bool authenticated;
 
+  Widget _dashboard(BuildContext context) => DashboardPage(
+    onOpenWorkspace: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PeoplePage(apiFactory: apiFactory ?? ParagonApi.new),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Projekt Paragon',
     theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
-    home: authenticated
-        ? PeoplePage(apiFactory: apiFactory ?? ParagonApi.new)
-        : Builder(
-            builder: (context) => WelcomePage(
+    home: Builder(
+      builder: (context) => authenticated
+          ? _dashboard(context)
+          : WelcomePage(
               onContinue: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) =>
-                        PeoplePage(apiFactory: apiFactory ?? ParagonApi.new),
+                    builder: (context) => _dashboard(context),
                   ),
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Tryb gościa: konto nie zostało utworzone.'),
+                    behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.fromLTRB(16, 0, 16, 56),
                   ),
                 );
               },
             ),
-          ),
+    ),
   );
 }
 
@@ -154,7 +164,10 @@ class _PeoplePageState extends State<PeoplePage> {
               ? null
               : () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => ReceiptPage(address: _connectedAddress!),
+                    builder: (_) => ReceiptPage(
+                      address: _connectedAddress!,
+                      peopleApi: _api,
+                    ),
                   ),
                 ),
           icon: const Icon(Icons.receipt_long),

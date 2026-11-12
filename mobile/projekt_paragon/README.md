@@ -1,13 +1,22 @@
 ﻿# Projekt Paragon — aplikacja mobilna
 
-Przy uruchomieniu bez zalogowanej sesji pojawia się ekran powitalny z projektu
-Figma. „Kontynuuj” otwiera aplikację w trybie gościa; wpisany adres e-mail nie jest
-wysyłany ani zapisywany i nie powstaje konto. Przyciski Google i Apple informują,
+Przy uruchomieniu bez zalogowanej sesji pojawia się ekran Sign In z projektu
+Figma. „Kontynuuj” otwiera ekran główny w trybie gościa; wpisany adres e-mail nie
+jest wysyłany ani zapisywany i nie powstaje konto. Przyciski Google i Apple informują,
 że logowanie przez te usługi nie jest jeszcze dostępne. Po ponownym uruchomieniu
-aplikacji ekran powitalny pojawi się znowu. Backend nie obsługuje jeszcze kont
-ani sesji użytkowników.
+aplikacji ekran Sign In pojawi się znowu. Backend nie obsługuje jeszcze kont
+ani trwałych sesji użytkowników. Gdy prawdziwa integracja uwierzytelniania
+przekaże potwierdzoną sesję do `MyApp(authenticated: true)`, aplikacja od razu
+otworzy ekran główny, pomijając Sign In.
 
-Po przejściu dalej ekran zawiera konfigurację API, listę znajomych i dodawanie osób.
+Ekran główny odwzorowuje ramkę „Ecommerce” z Figmy. Karty salda pokazują brak
+danych, ponieważ API nie zna jeszcze bieżącego użytkownika ani jego zobowiązań.
+Zdjęcia produktów i sklepów są przykładami z makiety, a nie historią zakupów.
+Wyszukiwarka filtruje te przykłady. Skróty „Following”, „Orders” oraz ikony
+koszyka i profilu otwierają istniejący ekran znajomych i konfiguracji API;
+pozostałe skróty wyjaśniają, że ich funkcje są jeszcze niedostępne.
+
+Po przejściu do znajomych ekran zawiera konfigurację API, listę i dodawanie osób.
 Dane zapisuje backend SQLite; lista jest pobierana ponownie przy uruchomieniu.
 Zmiana adresu w ekranie obowiązuje po kliknięciu „Połącz” i tylko do zamknięcia aplikacji.
 Stały adres początkowy ustaw przez `--dart-define=API_BASE_URL=...`.
@@ -87,6 +96,21 @@ ponieważ indeksy pozycji mogły się zmienić. Do już zapisanych paragonów b�
 można wrócić z historii w kolejnym etapie; obecnie korekta jest dostępna od razu
 po przesłaniu zdjęcia.
 
+## Podział kosztów
+
+Po odczycie paragonu wybierz „Przypisz produkty i podziel koszty”. Dotknij
+produktu i zaznacz jedną lub kilka osób; możesz też dodać nową osobę na tym
+ekranie. Każda pozycja jest dzielona równo między zaznaczone osoby według kwoty
+po rabacie. Pozostałe pojedyncze grosze otrzymują osoby o niższych identyfikatorach,
+więc suma udziałów zawsze odpowiada wartości pozycji.
+
+Podsumowanie pokazuje kwotę każdej osoby i łączną wartość nieprzypisanych
+produktów. Można zapisać niepełny podział i później do niego wrócić z bieżącego
+ekranu paragonu. Po ponownym otwarciu przypisania są wczytywane z API.
+Przed podziałem sprawdź ostrzeżenie o niezgodności sumy paragonu; korekta
+produktów lub sumy usuwa zapisane przypisania, aby nie odnosiły się do innych
+pozycji. Historia zapisanych paragonów będzie dostępna w kolejnym etapie.
+
 ## Weryfikacja
 
 ```powershell
@@ -103,5 +127,6 @@ uruchomienie aplikacji (osoba powinna pozostać w backendzie). Następnie sprawd
 galerię, anulowanie wyboru, aparat, odmowę dostępu, upload i wynik OCR na prawdziwym
 telefonie. Testy automatyczne obejmują multipart, limit rozmiaru, błędy HTTP,
 podgląd, anulowanie wyboru, blokowanie podwójnego wysłania, walidację korekty,
-zapis i dokładność kwot. Nie sprawdzają systemowych okien aparatu ani jakości OCR.
-Przypisania, historia i eksport nie mają jeszcze ekranów mobilnych.
+zapis i dokładność kwot oraz zachowanie groszy i ponowne wczytanie przypisań.
+Nie sprawdzają systemowych okien aparatu ani jakości OCR. Historia i eksport
+nie mają jeszcze ekranów mobilnych.

@@ -117,10 +117,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Image), findsOneWidget);
       await tester.ensureVisible(find.text('Wyślij do odczytu'));
+      final uploadButton = find.ancestor(
+        of: find.text('Wyślij do odczytu'),
+        matching: find.byType(FilledButton),
+      );
       await tester.tap(find.text('Wyślij do odczytu'));
       await tester.pump();
       expect(
-        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        tester.widget<FilledButton>(uploadButton).onPressed,
         isNull,
       );
       response.complete(
@@ -131,7 +135,7 @@ void main() {
       expect(find.text('Zapisano paragon #7'), findsOneWidget);
       expect(calls, 1);
       expect(
-        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        tester.widget<FilledButton>(uploadButton).onPressed,
         isNull,
       );
     },

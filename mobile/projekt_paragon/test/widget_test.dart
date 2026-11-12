@@ -65,9 +65,17 @@ void main() {
 
     await tester.tap(find.text('Kontynuuj'));
     await tester.pumpAndSettle();
+    expect(find.text('Twoje ostatnio zakupione produkty'), findsOneWidget);
+    expect(find.text('Ala'), findsNothing);
+
+    await tester.tap(find.byTooltip('Znajomi i ustawienia'));
+    await tester.pumpAndSettle();
     expect(find.text('Ala'), findsOneWidget);
 
     await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Twoje ostatnio zakupione produkty'), findsOneWidget);
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
     await tester.pumpAndSettle();
     expect(find.text('MyParagon'), findsOneWidget);
   });
@@ -85,6 +93,9 @@ void main() {
   ) async {
     final api = FakeApi();
     await tester.pumpWidget(MyApp(apiFactory: (_) => api, authenticated: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Kontynuuj'), findsNothing);
+    await tester.tap(find.byTooltip('Znajomi i ustawienia'));
     await tester.pumpAndSettle();
     expect(find.text('Ala'), findsOneWidget);
     await tester.tap(find.text('Dodaj osobę'));
@@ -112,6 +123,8 @@ void main() {
     final api = FakeApi()..fail = true;
     await tester.pumpWidget(MyApp(apiFactory: (_) => api, authenticated: true));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Znajomi i ustawienia'));
+    await tester.pumpAndSettle();
     expect(find.text('Brak połączenia'), findsOneWidget);
     api.fail = false;
     await tester.tap(find.text('Połącz'));
@@ -125,6 +138,8 @@ void main() {
   ) async {
     final api = FakeApi();
     await tester.pumpWidget(MyApp(apiFactory: (_) => api, authenticated: true));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Znajomi i ustawienia'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'bad-address');
     await tester.tap(find.text('Połącz'));

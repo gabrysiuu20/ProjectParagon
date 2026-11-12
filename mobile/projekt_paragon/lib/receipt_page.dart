@@ -7,12 +7,20 @@ import 'package:image_picker/image_picker.dart';
 import 'api.dart';
 import 'receipt_api.dart';
 import 'receipt_edit_page.dart';
+import 'receipt_settlement_page.dart';
 
 class ReceiptPage extends StatefulWidget {
-  const ReceiptPage({super.key, required this.address, this.picker, this.api});
+  const ReceiptPage({
+    super.key,
+    required this.address,
+    this.picker,
+    this.api,
+    this.peopleApi,
+  });
   final String address;
   final ImagePicker? picker;
   final ReceiptApi? api;
+  final PeopleApi? peopleApi;
 
   @override
   State<ReceiptPage> createState() => _ReceiptPageState();
@@ -121,6 +129,19 @@ class _ReceiptPageState extends State<ReceiptPage> {
     if (mounted && updated != null) setState(() => _result = updated);
   }
 
+  Future<void> _settle(UploadedReceipt receipt) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ReceiptSettlementPage(
+          receipt: receipt,
+          api: _api,
+          address: widget.address,
+          peopleApi: widget.peopleApi,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
@@ -213,6 +234,11 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   onPressed: _busy ? null : () => _edit(result),
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Edytuj produkty i sumę'),
+                ),
+                FilledButton.icon(
+                  onPressed: _busy ? null : () => _settle(result),
+                  icon: const Icon(Icons.groups_outlined),
+                  label: const Text('Przypisz produkty i podziel koszty'),
                 ),
                 const Text('Sprawdź nazwy i kwoty przed rozliczeniem.'),
                 ExpansionTile(
