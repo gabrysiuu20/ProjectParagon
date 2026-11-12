@@ -2,20 +2,42 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'receipt_page.dart';
+import 'welcome_page.dart';
 
 void main() => runApp(const MyApp());
 
 typedef ApiFactory = PeopleApi Function(String address);
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, this.apiFactory});
+  const MyApp({super.key, this.apiFactory, this.authenticated = false});
   final ApiFactory? apiFactory;
+  // The backend does not provide authentication yet. A future auth integration
+  // can pass its verified session state here; guest mode never changes it.
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Projekt Paragon',
     theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
-    home: PeoplePage(apiFactory: apiFactory ?? ParagonApi.new),
+    home: authenticated
+        ? PeoplePage(apiFactory: apiFactory ?? ParagonApi.new)
+        : Builder(
+            builder: (context) => WelcomePage(
+              onContinue: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        PeoplePage(apiFactory: apiFactory ?? ParagonApi.new),
+                  ),
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tryb gościa: konto nie zostało utworzone.'),
+                  ),
+                );
+              },
+            ),
+          ),
   );
 }
 

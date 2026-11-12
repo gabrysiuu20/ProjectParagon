@@ -23,11 +23,68 @@ class FakeApi implements PeopleApi {
 }
 
 void main() {
-  testWidgets('Loads friends, validates input and adds trimmed name', (
+  testWidgets('Welcome screen renders every Figma asset at its export size', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MyApp());
+    const sizes = <String, Size>{
+      'receipt_shop.png': Size(114, 180),
+      'receipt_cafe.png': Size(92, 156),
+      'receipt_store.png': Size(133, 183),
+      'receipt_bakery.png': Size(111, 162),
+      'google.png': Size(20, 20),
+      'apple.png': Size(20, 20),
+    };
+    for (final entry in sizes.entries) {
+      final asset = find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is AssetImage &&
+            (widget.image as AssetImage).assetName.endsWith(entry.key),
+      );
+      expect(asset, findsOneWidget);
+      expect(tester.getSize(asset), entry.value);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Welcome screen opens the app only after guest continues', (
     tester,
   ) async {
     final api = FakeApi();
     await tester.pumpWidget(MyApp(apiFactory: (_) => api));
+    expect(find.text('MyParagon'), findsOneWidget);
+    expect(find.text('Kontynuuj'), findsOneWidget);
+    expect(find.text('Znajomi'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Kontynuuj'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ala'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('MyParagon'), findsOneWidget);
+  });
+
+  testWidgets('Provider buttons do not create a session', (tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.tap(find.text('Zaloguj się z Google'));
+    await tester.pump();
+    expect(find.textContaining('nie jest jeszcze dostępne'), findsOneWidget);
+    expect(find.text('Znajomi'), findsNothing);
+  });
+
+  testWidgets('Loads friends, validates input and adds trimmed name', (
+    tester,
+  ) async {
+    final api = FakeApi();
+    await tester.pumpWidget(MyApp(apiFactory: (_) => api, authenticated: true));
     await tester.pumpAndSettle();
     expect(find.text('Ala'), findsOneWidget);
     await tester.tap(find.text('Dodaj osobę'));
@@ -53,7 +110,7 @@ void main() {
 
   testWidgets('Connection error allows retry', (tester) async {
     final api = FakeApi()..fail = true;
-    await tester.pumpWidget(MyApp(apiFactory: (_) => api));
+    await tester.pumpWidget(MyApp(apiFactory: (_) => api, authenticated: true));
     await tester.pumpAndSettle();
     expect(find.text('Brak połączenia'), findsOneWidget);
     api.fail = false;
@@ -67,7 +124,7 @@ void main() {
     tester,
   ) async {
     final api = FakeApi();
-    await tester.pumpWidget(MyApp(apiFactory: (_) => api));
+    await tester.pumpWidget(MyApp(apiFactory: (_) => api, authenticated: true));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'bad-address');
     await tester.tap(find.text('Połącz'));

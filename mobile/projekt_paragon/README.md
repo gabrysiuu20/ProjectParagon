@@ -1,6 +1,13 @@
 ﻿# Projekt Paragon — aplikacja mobilna
 
-Pierwszy ekran zawiera konfigurację API, listę znajomych i dodawanie osób.
+Przy uruchomieniu bez zalogowanej sesji pojawia się ekran powitalny z projektu
+Figma. „Kontynuuj” otwiera aplikację w trybie gościa; wpisany adres e-mail nie jest
+wysyłany ani zapisywany i nie powstaje konto. Przyciski Google i Apple informują,
+że logowanie przez te usługi nie jest jeszcze dostępne. Po ponownym uruchomieniu
+aplikacji ekran powitalny pojawi się znowu. Backend nie obsługuje jeszcze kont
+ani sesji użytkowników.
+
+Po przejściu dalej ekran zawiera konfigurację API, listę znajomych i dodawanie osób.
 Dane zapisuje backend SQLite; lista jest pobierana ponownie przy uruchomieniu.
 Zmiana adresu w ekranie obowiązuje po kliknięciu „Połącz” i tylko do zamknięcia aplikacji.
 Stały adres początkowy ustaw przez `--dart-define=API_BASE_URL=...`.
@@ -36,6 +43,12 @@ Klient używa `dart:io`, więc ten etap obsługuje Android/desktop; przeglądark
 Wybór zdjęć korzysta z `image_picker`, upload multipart z `http`.
 Po pobraniu zmian uruchom `flutter pub get`. Na Windows pluginy wymagają
 włączonego Trybu dewelopera (Ustawienia systemu → Dla deweloperów).
+
+Ikona aplikacji na Androidzie i iOS pochodzi z `assets/launcher/logo.png`.
+Wygenerowane rozmiary są zapisane w zasobach platform; po zmianie logo można je
+odtworzyć przez `python tool/generate_launcher_icons.py` (wymaga Pillow).
+Zmiana ikony launchera wymaga ponownego zbudowania i zainstalowania aplikacji;
+hot reload jej nie aktualizuje.
 
 ## Zdjęcie paragonu
 
